@@ -34,9 +34,19 @@ def main():
     ap.add_argument("--privacy", choices=["private", "unlisted", "public"], default="private")
     ap.add_argument("--footage", choices=["window", "woods", "leaves"], default="woods")
     ap.add_argument("--seed", default="7")
+    ap.add_argument("--from-id", default="",
+                    help="Gallery ID like woods-7 (sets footage + seed, overrides --footage/--seed)")
     ap.add_argument("--preview", action="store_true",
                     help="Render a 60s local preview first (uses sources/ in this folder)")
     a = ap.parse_args()
+
+    if a.from_id:
+        try:
+            a.footage, a.seed = a.from_id.rsplit("-", 1)
+        except ValueError:
+            sys.exit("--from-id must look like woods-7")
+        if a.footage not in ("window", "woods", "leaves"):
+            sys.exit(f"unknown footage in --from-id: {a.footage}")
 
     if a.preview:
         run([sys.executable, "rain_sample_mix.py", "--duration", "60",

@@ -1,0 +1,78 @@
+name: Preview gallery to Pages
+
+# Renders 60s previews (one per scenery), publishes a watch-and-pick site
+# to GitHub Pages. You choose a winner there, copy its command, run it.
+on:
+  workflow_dispatch:
+    inputs:
+      seeds:
+        description: "Rain seeds to preview (space separated)"
+        required: false
+        default: "7"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Download source assets
+        run: bash scripts/download_assets.sh
+
+      - name: Render previews + manifest
+        run: |
+          mkdir -p site
+          echo "[" > site/manifest.json
+          first=1
+          for footage in window woods leaves; do
+            case "$footage" in
+              window) SRC=sources/rain_window_home.mp4; LSEC=55; TITLE="Cozy rain on glass window" ;;
+              woods)  SRC=sources/rain_woods.mp4;         LSEC=18; TITLE="Rain in the woods" ;;
+              leaves) SRC=sources/rain_leaves.mp4;        LSEC=10; TITLE="Rain on garden leaves" ;;
+            esac
+            for seed in ${{ inputs.seeds }}; do
+              id="$footage-$seed"
+              python3 rain_sample_mix.py --duration 60 --out "/tmp/a-$id.wav" --seed "$seed"
+              python3 video_loop.py --src "$SRC" --audio "/tmp/a-$id.wav" \
+                --out "site/$id.mp4" --loop-sec "$LSEC" --total 60
+              [ $first -eq 1 ] || echo "," >> site/manifest.json
+              first=0
+              printf '{"file": "%s", "id": "%s", "footage": "%s", "seed": %s, "title": "%s"}' \
+                "$id.mp4" "$id" "$footage" "$seed" "$TITLE" >> site/manifest.json
+            done
+          done
+          echo "" >> site/manifest.json
+          echo "]" >> site/manifest.json
+          python3 scripts/build_gallery.py --dir site
+          ls -lh site/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

@@ -48,12 +48,23 @@ Nobody else can see them, not even in forks. The repo itself should be **public*
 ```bash
 # 8-hour video, stays private until you approve it on YouTube Studio
 python3 make_long.py --hours 8 \
-  --title "Rain on Glass Window | 8 Hours Cozy Sleep Sounds" \
-  --privacy private
+  --title "Rain in the Woods for Deep Sleep | 8 Hours" \
+  --privacy private --footage woods
 
 # 1-hour test + local 60s preview first
 python3 make_long.py --hours 1 --privacy unlisted --preview
 ```
+
+## Preview gallery (pick on a website, then launch)
+
+Don't guess which scenery works — watch and pick:
+
+1. Repo → Settings → Pages → Source: **GitHub Actions** (one-time, 10 seconds).
+2. Actions → *Preview gallery to Pages* → Run workflow (renders 60s window/woods/leaves previews, ~5 min).
+3. Open the `github.io` link from the run summary. Each card has a **Copy 8h command** button.
+4. Paste it on your laptop — the cloud renders the full 8h and uploads to YouTube.
+
+To re-render previews with more rain seeds: Run workflow → `seeds: "7 21 42"`.
 
 Or trigger by hand: repo → *Actions → Render long ambient video → Run workflow*.
 
