@@ -25,6 +25,12 @@ on:
         default: "private"
         type: choice
         options: ["private", "unlisted", "public"]
+      footage:
+        description: "Scenery (window = cozy, woods/leaves = greenery)"
+        required: true
+        default: "woods"
+        type: choice
+        options: ["window", "woods", "leaves"]
       audio_seed:
         description: "Rain mix seed (change for a different performance)"
         required: false
@@ -64,9 +70,14 @@ jobs:
       - name: Render seamless master (audio + video)
         run: |
           MASTER_SEC=$(( ${{ inputs.master_minutes }} * 60 ))
+          case "${{ inputs.footage }}" in
+            window) SRC=sources/rain_window_home.mp4; LSEC=55 ;;
+            woods)  SRC=sources/rain_woods.mp4;         LSEC=18 ;;
+            leaves) SRC=sources/rain_leaves.mp4;        LSEC=10 ;;
+          esac
           python3 rain_sample_mix.py --duration "$MASTER_SEC" --out master_audio.wav --seed "${{ inputs.audio_seed }}"
-          python3 video_loop.py --src sources/rain_window_home.mp4 \
-            --audio master_audio.wav --out master.mp4 --loop-sec 55 --total "$MASTER_SEC"
+          python3 video_loop.py --src "$SRC" \
+            --audio master_audio.wav --out master.mp4 --loop-sec "$LSEC" --total "$MASTER_SEC"
 
       - name: Extend master to target hours (seamless copy-loop)
         run: |

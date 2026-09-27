@@ -32,6 +32,7 @@ def main():
     ap.add_argument("--title", default="Rain on Glass Window | Cozy Ambient Sleep Sounds")
     ap.add_argument("--description", default="Soft rain falling on a glass window. Loopable ambient rain for sleep, study and relaxation.")
     ap.add_argument("--privacy", choices=["private", "unlisted", "public"], default="private")
+    ap.add_argument("--footage", choices=["window", "woods", "leaves"], default="woods")
     ap.add_argument("--seed", default="7")
     ap.add_argument("--preview", action="store_true",
                     help="Render a 60s local preview first (uses sources/ in this folder)")
@@ -48,7 +49,7 @@ def main():
     out = run(["gh", "workflow", "run", "render-upload.yml",
                "-f", f"hours={a.hours}", "-f", f"title={a.title}",
                "-f", f"description={a.description}", "-f", f"privacy={a.privacy}",
-               "-f", f"seed={a.seed}"], capture=True)
+               "-f", f"footage={a.footage}", "-f", f"seed={a.seed}"], capture=True)
     time.sleep(8)
     runs = run(["gh", "run", "list", "--workflow", "render-upload.yml",
                 "--limit", "1", "--json", "databaseId", "-q", ".[0].databaseId"],

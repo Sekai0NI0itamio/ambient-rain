@@ -10,6 +10,9 @@ Download method (no login): `curl -L https://commons.wikimedia.org/wiki/Special:
 
 ## Video — Mixkit (Mixkit License: free, no attribution, commercial YouTube use allowed per https://mixkit.co/license/)
 - `rain_forest.mp4` — "Forest under a tropical rain" https://mixkit.co/free-stock-video/forest-under-a-tropical-rain-6890/ (720p preview via assets.mixkit.co). Re-download HD from the item page for finals.
+- `rain_woods.mp4` — "Tree branch under the rain in the woods" https://mixkit.co/free-stock-video/tree-branche-under-the-rain-in-the-woods-6782/ (720p, 20.3s, woods sleep vibe — lead scenery for 8h flagship)
+- `rain_leaves.mp4` — "Very close shot of the leaves of a tree wet with rain" https://mixkit.co/free-stock-video/very-close-shot-of-the-leaves-of-a-tree-wet-18310/ (720p, 12s, gentle work vibe)
+- Also probed OK: 6806 heavy rain forest, 18309 garden leaves (see workflow for swap-in).
 
 ## Video — Pexels (Pexels License: free, no attribution, commercial YouTube use allowed per https://www.pexels.com/license/)
 - `rain_window_home.mp4` — "Raindrops on a Glass Window" https://www.pexels.com/video/raindrops-on-a-glass-window-5517022/ (720p, 61.5s, close-up phone-style, cozy/homemade feel). Direct file: https://videos.pexels.com/video-files/5517022/5517022-hd_1280_720_30fps.mp4. Backup candidate: "Rain falling outside of a glass window" https://www.pexels.com/video/rain-falling-outside-of-a-glass-window-8549580/.

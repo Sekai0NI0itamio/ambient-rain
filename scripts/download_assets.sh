@@ -20,4 +20,8 @@ fetch "rain_heavy.ogg"  "https://commons.wikimedia.org/wiki/Special:FilePath/Hea
 # Video: Pexels, "Raindrops on a Glass Window" 720p (Pexels License, see SOURCES.md)
 fetch "rain_window_home.mp4" "https://videos.pexels.com/video-files/5517022/5517022-hd_1280_720_30fps.mp4"
 
+# Video: Mixkit greenery (Mixkit License, see SOURCES.md)
+fetch "rain_woods.mp4" "https://assets.mixkit.co/videos/6782/6782-720.mp4"
+fetch "rain_leaves.mp4" "https://assets.mixkit.co/videos/18310/18310-720.mp4"
+
 ls -lh
