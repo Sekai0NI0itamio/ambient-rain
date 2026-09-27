@@ -67,7 +67,7 @@ jobs:
       - name: Install ffmpeg
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
           ffmpeg -version | head -n 1
 
       - name: Install dependencies
@@ -91,8 +91,11 @@ jobs:
             720p)  HEIGHT=720 ;;
           esac
           python3 rain_sample_mix.py --duration "$MASTER_SEC" --out master_audio.wav --seed "${{ inputs.audio_seed }}"
+          python3 scripts/make_intro.py --out intro.mp4 --icon avatars/v1_moon_rain.png \
+            --height "$HEIGHT" --name "Ambientful Ambient Sounds"
           python3 video_loop.py --src "$SRC" --height "$HEIGHT" --preset veryfast --crf 21 --abr 256k \
-            --audio master_audio.wav --out master.mp4 --loop-sec "$LSEC" --total "$MASTER_SEC"
+            --audio master_audio.wav --out master.mp4 --loop-sec "$LSEC" --total "$MASTER_SEC" \
+            --intro intro.mp4
 
       - name: Extend master to target hours (seamless copy-loop)
         run: |

@@ -68,6 +68,11 @@ Speed design: the cloud renders one 10-min seamless master (1080p, `veryfast`),
 then extends it to 8h with a stream **copy** (no re-encode) — total target ≤40 min,
 guarded by a 45-min job timeout. Audio is AAC 256k.
 
+Every video opens with a 5s branded intro card (channel icon + subscribe pill,
+`scripts/make_intro.py`) — human-made branding that also signals originality
+to reviewers. To use your own hand-drawn avatar instead: save it over
+`avatars/icon.png` and change `--icon` in the workflow + `make_intro` default.
+
 Or trigger by hand: repo → *Actions → Render long ambient video → Run workflow*.
 
 New rain "performance"? Change `--seed` (or `audio_seed` in the UI) — same
