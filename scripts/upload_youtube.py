@@ -1,12 +1,16 @@
 """Upload a video file to YouTube with resumable upload.
 
-Auth: OAuth2 refresh token from repo secrets (see README.md setup).
+Auth: ONE repo secret, YOUTUBE_CLIENT_JSON:
+  {"client_id": "...", "client_secret": "...", "refresh_token": "..."}
+(Get it from scripts/get_refresh_token.py — paste the single line it prints.)
+Legacy fallback: YOUTUBE_CLIENT_ID / YOUTUBE_CLIENT_SECRET / YOUTUBE_REFRESH_TOKEN.
 Usage:
-  YOUTUBE_CLIENT_ID=... YOUTUBE_CLIENT_SECRET=... YOUTUBE_REFRESH_TOKEN=... \
+  YOUTUBE_CLIENT_JSON='<paste>' \
   python3 scripts/upload_youtube.py --file long.mp4 \
     --title "Rain ..." --description "..." --privacy private
 """
 import argparse
+import json
 import os
 
 from google.oauth2.credentials import Credentials
@@ -26,12 +30,20 @@ def main():
                     help="private = draft, visible only to you")
     a = ap.parse_args()
 
+    blob = os.environ.get("YOUTUBE_CLIENT_JSON", "")
+    if blob:
+        auth = json.loads(blob)
+    else:  # legacy three-secret fallback
+        auth = {"client_id": os.environ["YOUTUBE_CLIENT_ID"],
+                "client_secret": os.environ["YOUTUBE_CLIENT_SECRET"],
+                "refresh_token": os.environ["YOUTUBE_REFRESH_TOKEN"]}
+
     creds = Credentials(
         token=None,
-        refresh_token=os.environ["YOUTUBE_REFRESH_TOKEN"],
+        refresh_token=auth["refresh_token"],
         token_uri="https://oauth2.googleapis.com/token",
-        client_id=os.environ["YOUTUBE_CLIENT_ID"],
-        client_secret=os.environ["YOUTUBE_CLIENT_SECRET"],
+        client_id=auth["client_id"],
+        client_secret=auth["client_secret"],
         scopes=SCOPES,
     )
     yt = build("youtube", "v3", credentials=creds)

@@ -23,50 +23,50 @@ them straight to YouTube. Big bytes never touch your home internet.
 5. Verify your YouTube channel for long uploads: https://www.youtube.com/verify
    (phone SMS — required for anything over 15 minutes).
 
-### B. Refresh token (runs on your laptop, once)
+### B. One credential (runs on your laptop, once)
+
+You downloaded the OAuth client JSON from Google Cloud — feed it straight in:
 
 ```bash
 pip install google-auth-oauthlib
-python3 scripts/get_refresh_token.py --client-id YOUR_ID --client-secret YOUR_SECRET
+python3 scripts/get_refresh_token.py --client-json-file ~/Downloads/client_secret*.json
+# ...or paste the JSON string directly:
+python3 scripts/get_refresh_token.py --client-json '{"installed": {...}}'
 ```
 
-Sign in with the Google account that owns the channel. It prints a token.
+Sign in with the Google account that owns the channel. It prints **one line**.
 
-### C. Repo secrets (repo → Settings → Secrets and variables → Actions → New)
+### C. Repo secret (repo → Settings → Secrets and variables → Actions → New)
 
 | Name | Value |
 |---|---|
-| `YOUTUBE_CLIENT_ID` | from step A4 |
-| `YOUTUBE_CLIENT_SECRET` | from step A4 |
-| `YOUTUBE_REFRESH_TOKEN` | from step B |
+| `YOUTUBE_CLIENT_JSON` | the one line from step B — that's the only secret |
 
-Nobody else can see them, not even in forks. This repo is **private**:
+Nobody else can see it, not even in forks. This repo is **private**:
 free-plan Actions include ~2000 runner minutes/month (one 8h render ≈ 30–60 min).
-Note: GitHub Pages previews need a public repo (or paid plan) — while private,
-use `make_long.py --preview` locally instead of the gallery site.
+
+## Check samples locally first (everything is ~1 minute)
+
+```bash
+python3 make_long.py --preview-all   # renders preview_window/woods/leaves.mp4, no upload
+```
+
+Watch the three, pick your scenery, then launch the matching 8h command.
 
 ## Usage
 
 ```bash
-# 8-hour video, stays private until you approve it on YouTube Studio
-python3 make_long.py --hours 8 \
-  --title "Rain in the Woods for Deep Sleep | 8 Hours" \
-  --privacy private --footage woods
+# 8-hour 1080p video, stays private until you approve it on YouTube Studio
+python3 make_long.py --from-id woods-7 --hours 8 --privacy private \
+  --title "Rain in the Woods for Deep Sleep | 8 Hours"
 
-# 1-hour test + local 60s preview first
-python3 make_long.py --hours 1 --privacy unlisted --preview
+# 1-hour test
+python3 make_long.py --hours 1 --footage leaves --preview
 ```
 
-## Preview gallery (pick on a website, then launch)
-
-Don't guess which scenery works — watch and pick:
-
-1. Repo → Settings → Pages → Source: **GitHub Actions** (one-time, 10 seconds).
-2. Actions → *Preview gallery to Pages* → Run workflow (renders 60s window/woods/leaves previews, ~5 min).
-3. Open the `github.io` link from the run summary. Each card has a **Copy 8h command** button.
-4. Paste it on your laptop — the cloud renders the full 8h and uploads to YouTube.
-
-To re-render previews with more rain seeds: Run workflow → `seeds: "7 21 42"`.
+Speed design: the cloud renders one 10-min seamless master (1080p, `veryfast`),
+then extends it to 8h with a stream **copy** (no re-encode) — total target ≤40 min,
+guarded by a 45-min job timeout. Audio is AAC 256k.
 
 Or trigger by hand: repo → *Actions → Render long ambient video → Run workflow*.
 

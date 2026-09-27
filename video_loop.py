@@ -19,6 +19,13 @@ def main():
     ap.add_argument("--loop-sec", type=float, default=12)
     ap.add_argument("--total", type=float, default=60)
     ap.add_argument("--xfade", type=float, default=1.0)
+    ap.add_argument("--height", type=int, default=720,
+                    help="Output height (720, or 1080 to upscale). Width auto.")
+    ap.add_argument("--preset", default="veryfast",
+                    help="x264 speed preset (veryfast = fast cloud renders)")
+    ap.add_argument("--crf", type=int, default=21)
+    ap.add_argument("--abr", default="192k",
+                    help="AAC audio bitrate (use 256k for best)")
     a = ap.parse_args()
     src = a.src
     if not src:
@@ -29,8 +36,8 @@ def main():
     loop_dur = L - X
     import math
     n_loops = max(1, math.ceil(a.total / loop_dur))
-    run(f"ffmpeg -y -i {shlex.quote(src)} -filter_complex \"[0:v]trim=0:{L},setpts=PTS-STARTPTS[v0];[0:v]trim={X}:{L},setpts=PTS-STARTPTS[v1];[v0][v1]xfade=transition=fade:duration={X}:offset={L - 2*X}[v]\" -map \"[v]\" -c:v libx264 -pix_fmt yuv420p {shlex.quote(looped)}")
-    run(f"ffmpeg -y -stream_loop {n_loops} -i {shlex.quote(looped)} -i {shlex.quote(a.audio)} -map 0:v -map 1:a -t {a.total} -c:v copy -c:a aac -b:a 192k -movflags +faststart -shortest {shlex.quote(a.out)}")
+    run(f"ffmpeg -y -i {shlex.quote(src)} -filter_complex \"[0:v]trim=0:{L},setpts=PTS-STARTPTS[v0];[0:v]trim={X}:{L},setpts=PTS-STARTPTS[v1];[v0][v1]xfade=transition=fade:duration={X}:offset={L - 2*X},scale=-2:{a.height}[v]\" -map \"[v]\" -c:v libx264 -preset {a.preset} -crf {a.crf} -pix_fmt yuv420p {shlex.quote(looped)}")
+    run(f"ffmpeg -y -stream_loop {n_loops} -i {shlex.quote(looped)} -i {shlex.quote(a.audio)} -map 0:v -map 1:a -t {a.total} -c:v copy -c:a aac -b:a {a.abr} -movflags +faststart -shortest {shlex.quote(a.out)}")
     print(f"wrote {a.out}")
 
 if __name__ == "__main__":

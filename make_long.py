@@ -35,10 +35,13 @@ def main():
                     help="private = draft, visible only to you until you publish in Studio")
     ap.add_argument("--footage", choices=["window", "woods", "leaves"], default="woods")
     ap.add_argument("--seed", default="7")
+    ap.add_argument("--quality", choices=["1080p", "720p"], default="1080p")
     ap.add_argument("--from-id", default="",
-                    help="Gallery ID like woods-7 (sets footage + seed, overrides --footage/--seed)")
+                    help="Preset ID like woods-7 (sets footage + seed, overrides --footage/--seed)")
     ap.add_argument("--preview", action="store_true",
                     help="Render a 60s local preview first (uses sources/ in this folder)")
+    ap.add_argument("--preview-all", action="store_true",
+                    help="Render 60s local previews for window+woods+leaves, then stop (no upload)")
     a = ap.parse_args()
 
     if a.from_id:
@@ -48,6 +51,20 @@ def main():
             sys.exit("--from-id must look like woods-7")
         if a.footage not in ("window", "woods", "leaves"):
             sys.exit(f"unknown footage in --from-id: {a.footage}")
+
+    if a.preview_all:
+        combos = [("window", "sources/rain_window_home.mp4", 55),
+                  ("woods", "sources/rain_woods.mp4", 18),
+                  ("leaves", "sources/rain_leaves.mp4", 10)]
+        for footage, src, lsec in combos:
+            run([sys.executable, "rain_sample_mix.py", "--duration", "60",
+                 "--out", f"preview_{footage}.wav", "--seed", a.seed])
+            run([sys.executable, "video_loop.py", "--src", src,
+                 "--audio", f"preview_{footage}.wav",
+                 "--out", f"preview_{footage}.mp4",
+                 "--loop-sec", str(lsec), "--total", "60"])
+        print("previews ready: preview_window/woods/leaves.mp4 — watch, pick, then launch")
+        return
 
     if a.preview:
         run([sys.executable, "rain_sample_mix.py", "--duration", "60",
@@ -60,7 +77,8 @@ def main():
     out = run(["gh", "workflow", "run", "render-upload.yml",
                "-f", f"hours={a.hours}", "-f", f"title={a.title}",
                "-f", f"description={a.description}", "-f", f"privacy={a.privacy}",
-               "-f", f"footage={a.footage}", "-f", f"seed={a.seed}"], capture=True)
+               "-f", f"footage={a.footage}", "-f", f"quality={a.quality}",
+               "-f", f"seed={a.seed}"], capture=True)
     time.sleep(8)
     runs = run(["gh", "run", "list", "--workflow", "render-upload.yml",
                 "--limit", "1", "--json", "databaseId", "-q", ".[0].databaseId"],

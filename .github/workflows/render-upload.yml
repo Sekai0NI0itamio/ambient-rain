@@ -31,6 +31,12 @@ on:
         default: "woods"
         type: choice
         options: ["window", "woods", "leaves"]
+      quality:
+        description: "Output quality (1080p recommended; 720p is faster/smaller)"
+        required: true
+        default: "1080p"
+        type: choice
+        options: ["1080p", "720p"]
       audio_seed:
         description: "Rain mix seed (change for a different performance)"
         required: false
@@ -47,7 +53,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 45
     permissions:
       contents: read
     steps:
@@ -80,8 +86,12 @@ jobs:
             woods)  SRC=sources/rain_woods.mp4;         LSEC=18 ;;
             leaves) SRC=sources/rain_leaves.mp4;        LSEC=10 ;;
           esac
+          case "${{ inputs.quality }}" in
+            1080p) HEIGHT=1080 ;;
+            720p)  HEIGHT=720 ;;
+          esac
           python3 rain_sample_mix.py --duration "$MASTER_SEC" --out master_audio.wav --seed "${{ inputs.audio_seed }}"
-          python3 video_loop.py --src "$SRC" \
+          python3 video_loop.py --src "$SRC" --height "$HEIGHT" --preset veryfast --crf 21 --abr 256k \
             --audio master_audio.wav --out master.mp4 --loop-sec "$LSEC" --total "$MASTER_SEC"
 
       - name: Extend master to target hours (seamless copy-loop)
@@ -94,9 +104,7 @@ jobs:
 
       - name: Upload to YouTube
         env:
-          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
-          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          YOUTUBE_CLIENT_JSON: ${{ secrets.YOUTUBE_CLIENT_JSON }}
         run: |
           python3 scripts/upload_youtube.py --file long.mp4 \
             --title "${{ inputs.title }}" \
