@@ -73,6 +73,13 @@ Every video opens with a 5s branded intro card (channel icon + subscribe pill,
 to reviewers. To use your own hand-drawn avatar instead: save it over
 `avatars/icon.png` and change `--icon` in the workflow + `make_intro` default.
 
+A transparent subscribe overlay (`scripts/make_overlay.py` → PNG sequence +
+`scripts/apply_overlay.py`) is also burned onto every master: a lower-third
+card that slides in over the footage. The PNG sequence is real transparency,
+so reuse it anywhere — CapCut, Premiere, DaVinci. (Canva can't export
+transparent video at all: no alpha in MP4, no WebM-alpha/ProRes option. If you
+design in Canva, make a *full-screen* card and pass it as `--intro` instead.)
+
 Or trigger by hand: repo → *Actions → Render long ambient video → Run workflow*.
 
 New rain "performance"? Change `--seed` (or `audio_seed` in the UI) — same

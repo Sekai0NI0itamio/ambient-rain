@@ -90,12 +90,21 @@ jobs:
             1080p) HEIGHT=1080 ;;
             720p)  HEIGHT=720 ;;
           esac
+          echo "HEIGHT=$HEIGHT" >> "$GITHUB_ENV"
           python3 rain_sample_mix.py --duration "$MASTER_SEC" --out master_audio.wav --seed "${{ inputs.audio_seed }}"
           python3 scripts/make_intro.py --out intro.mp4 --icon avatars/v1_moon_rain.png \
             --height "$HEIGHT" --name "Ambientful Ambient Sounds"
           python3 video_loop.py --src "$SRC" --height "$HEIGHT" --preset veryfast --crf 21 --abr 256k \
             --audio master_audio.wav --out master.mp4 --loop-sec "$LSEC" --total "$MASTER_SEC" \
             --intro intro.mp4
+
+      - name: Burn transparent subscribe overlay onto master
+        run: |
+          python3 scripts/make_overlay.py --outdir overlay_frames \
+            --icon avatars/v1_moon_rain.png --height "$HEIGHT"
+          python3 scripts/apply_overlay.py --video master.mp4 \
+            --frames overlay_frames --out master_ov.mp4
+          mv master_ov.mp4 master.mp4
 
       - name: Extend master to target hours (seamless copy-loop)
         run: |

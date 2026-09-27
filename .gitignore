@@ -12,3 +12,7 @@ __pycache__/
 .DS_Store
 _concat.txt
 _prefixed.mp4
+overlay_frames/
+overlay_sub.webm
+preview_ov.mp4
+intro.mp4
