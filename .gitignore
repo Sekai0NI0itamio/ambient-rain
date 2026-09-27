@@ -1,0 +1,10 @@
+# Big local files never go to git — the runner downloads its own copies.
+*.wav
+*.mp4
+*.mp3
+*.ogg
+*.jpg
+_looped.mp4
+_testsrc.mp4
+preview*.mp4
+__pycache__/

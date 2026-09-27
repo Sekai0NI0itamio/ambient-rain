@@ -1,0 +1,89 @@
+name: Render long ambient video + upload to YouTube
+
+# Manual trigger only (Actions tab or `python3 make_long.py --hours 8 ...`).
+# Heavy work happens on the runner: your laptop sends API calls only.
+on:
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: "Target video length in hours"
+        required: true
+        default: "1"
+        type: choice
+        options: ["1", "8"]
+      title:
+        description: "YouTube title"
+        required: true
+        default: "Rain on Glass Window | Cozy Ambient Sleep Sounds"
+      description:
+        description: "YouTube description"
+        required: false
+        default: "Soft rain falling on a glass window. Loopable ambient rain for sleep, study and relaxation."
+      privacy:
+        description: "Visibility (keep private for the first test)"
+        required: true
+        default: "private"
+        type: choice
+        options: ["private", "unlisted", "public"]
+      audio_seed:
+        description: "Rain mix seed (change for a different performance)"
+        required: false
+        default: "7"
+      master_minutes:
+        description: "Seamless master length in minutes (looped to reach hours)"
+        required: false
+        default: "10"
+
+concurrency:
+  group: render-upload
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          ffmpeg -version | head -n 1
+
+      - name: Download source assets
+        run: bash scripts/download_assets.sh
+
+      - name: Render seamless master (audio + video)
+        run: |
+          MASTER_SEC=$(( ${{ inputs.master_minutes }} * 60 ))
+          python3 rain_sample_mix.py --duration "$MASTER_SEC" --out master_audio.wav --seed "${{ inputs.audio_seed }}"
+          python3 video_loop.py --src sources/rain_window_home.mp4 \
+            --audio master_audio.wav --out master.mp4 --loop-sec 55 --total "$MASTER_SEC"
+
+      - name: Extend master to target hours (seamless copy-loop)
+        run: |
+          TARGET_SEC=$(( ${{ inputs.hours }} * 3600 ))
+          echo "TARGET_SEC=$TARGET_SEC" >> "$GITHUB_ENV"
+          python3 scripts/extend_loop.py --src master.mp4 --out long.mp4 --seconds "$TARGET_SEC"
+          ls -lh long.mp4
+          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1 long.mp4
+
+      - name: Upload to YouTube
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+        run: |
+          python3 scripts/upload_youtube.py --file long.mp4 \
+            --title "${{ inputs.title }}" \
+            --description "${{ inputs.description }}" \
+            --privacy "${{ inputs.privacy }}" | tee upload.log
+          grep -o 'https://www.youtube.com/watch?v=[A-Za-z0-9_-]*' upload.log | head -n 1 >> "$GITHUB_STEP_SUMMARY" || true
