@@ -8,3 +8,5 @@ _looped.mp4
 _testsrc.mp4
 preview*.mp4
 __pycache__/
+
+.DS_Store
