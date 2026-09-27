@@ -40,8 +40,10 @@ Sign in with the Google account that owns the channel. It prints a token.
 | `YOUTUBE_CLIENT_SECRET` | from step A4 |
 | `YOUTUBE_REFRESH_TOKEN` | from step B |
 
-Nobody else can see them, not even in forks. The repo itself should be **public**
-(public repos get unlimited free Actions minutes; code contains zero secrets).
+Nobody else can see them, not even in forks. This repo is **private**:
+free-plan Actions include ~2000 runner minutes/month (one 8h render ≈ 30–60 min).
+Note: GitHub Pages previews need a public repo (or paid plan) — while private,
+use `make_long.py --preview` locally instead of the gallery site.
 
 ## Usage
 
