@@ -10,3 +10,5 @@ preview*.mp4
 __pycache__/
 
 .DS_Store
+_concat.txt
+_prefixed.mp4
