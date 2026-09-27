@@ -20,11 +20,11 @@ on:
         required: false
         default: "Soft rain falling on a glass window. Loopable ambient rain for sleep, study and relaxation."
       privacy:
-        description: "Visibility (keep private for the first test)"
+        description: "Visibility (private = draft, only you see it)"
         required: true
         default: "private"
         type: choice
-        options: ["private", "unlisted", "public"]
+        options: ["private", "unlisted"]
       footage:
         description: "Scenery (window = cozy, woods/leaves = greenery)"
         required: true

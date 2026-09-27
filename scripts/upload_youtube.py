@@ -22,7 +22,8 @@ def main():
     ap.add_argument("--title", required=True)
     ap.add_argument("--description", default="")
     ap.add_argument("--privacy", default="private",
-                    choices=["private", "unlisted", "public"])
+                    choices=["private", "unlisted"],
+                    help="private = draft, visible only to you")
     a = ap.parse_args()
 
     creds = Credentials(

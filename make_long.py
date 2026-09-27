@@ -31,7 +31,8 @@ def main():
     ap.add_argument("--hours", choices=["1", "8"], default="1")
     ap.add_argument("--title", default="Rain on Glass Window | Cozy Ambient Sleep Sounds")
     ap.add_argument("--description", default="Soft rain falling on a glass window. Loopable ambient rain for sleep, study and relaxation.")
-    ap.add_argument("--privacy", choices=["private", "unlisted", "public"], default="private")
+    ap.add_argument("--privacy", choices=["private", "unlisted"], default="private",
+                    help="private = draft, visible only to you until you publish in Studio")
     ap.add_argument("--footage", choices=["window", "woods", "leaves"], default="woods")
     ap.add_argument("--seed", default="7")
     ap.add_argument("--from-id", default="",
