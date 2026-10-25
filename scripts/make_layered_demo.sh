@@ -65,7 +65,7 @@ ffmpeg -y -v warning -stats \
       format=yuv420p[vout]
   " \
   -map "[vout]" -an -t "$M" \
-  -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -r 60 -movflags +faststart \
+  -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p -r 60 -movflags +faststart \
   "ambient_master_rain_${M}s.mp4"
 
 echo "== audio master (bed + drops + thunder)"
