@@ -16,3 +16,9 @@ overlay_frames/
 overlay_sub.webm
 preview_ov.mp4
 intro.mp4
+
+# Two chosen audio sources ship with the repo so CI can render without
+# scraping Freesound (previews are public but rate-limited).
+!sources/candidates/rain_194209_klangfabrik.mp3
+!sources/candidates/thunder_572444_TRP.mp3
+*.aiff

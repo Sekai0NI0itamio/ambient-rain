@@ -1,0 +1,56 @@
+name: Render demo (rain + thunder, 60 fps)
+
+# Builds the current layered pipeline on a runner and hands back the MP4 as an
+# artifact. Nothing heavy runs on the laptop.
+on:
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: "Length in seconds"
+        required: true
+        default: "600"
+
+concurrency:
+  group: render-demo
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ffmpeg and numpy
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          python3 -m pip install --quiet --break-system-packages numpy
+          ffmpeg -version | head -n 1
+
+      - name: Fetch footage (Pexels, CC0-style licence)
+        run: |
+          mkdir -p footage/pexels
+          curl -L --fail --retry 3 -o footage/pexels/pexels_30770305_1080.mp4 \
+            "https://videos.pexels.com/video-files/30770305/13162097_1920_1080_30fps.mp4"
+          curl -L --fail --retry 3 -o footage/pexels/pexels_36344044_rain_overlay.mp4 \
+            "https://videos.pexels.com/video-files/36344044/15415146_1920_1080_60fps.mp4"
+          ls -lh footage/pexels
+
+      - name: Render
+        env:
+          MINUTES: ${{ inputs.seconds }}
+        run: |
+          chmod +x scripts/*.sh
+          ./scripts/make_layered_demo.sh
+          ls -lh ambient_demo_*s_rain.mp4
+
+      - name: Upload result
+        uses: actions/upload-artifact@v4
+        with:
+          name: rain-demo-${{ inputs.seconds }}s
+          path: ambient_demo_*s_rain.mp4
+          retention-days: 7
+          compression-level: 0
