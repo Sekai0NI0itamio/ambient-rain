@@ -28,34 +28,38 @@ jobs:
             " \
             -map "[v]" -an -t 6 -r 60 -threads 2 -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p /tmp/rain1920.mp4
           ls -lh /tmp/rain1920.mp4
-      - name: pass2 drone master 60
+      - name: pass2a bridge xfade
+        run: |
+          set -e
+          IN=48; OUT=110; XF=2
+          SEG=$((OUT-IN))
+          ffmpeg -y -nostdin -v error -threads 2 -filter_threads 1 \
+            -ss "$IN" -t "$SEG" -i footage/pexels/pexels_30770305_1080.mp4 \
+            -filter_complex "
+              [0:v]split=2[v2][v3];
+              [v2]trim=start=$((SEG-XF)):end=${SEG},setpts=PTS-STARTPTS,fps=30[tail];
+              [v3]trim=start=0:end=${XF},setpts=PTS-STARTPTS,fps=30[head];
+              [tail][head]xfade=transition=fade:duration=${XF}:offset=0[v]
+            " \
+            -map "[v]" -an -t ${XF} -r 30 -threads 2 -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p /tmp/bridge.mp4
+          ls -lh /tmp/bridge.mp4
+      - name: pass2b mid
         run: |
           set -e
           IN=48; OUT=110; XF=2
           SEG=$((OUT-IN)); M=$((SEG-XF))
-          ( ffmpeg -y -nostdin -v error -threads 2 -filter_threads 1 \
+          ffmpeg -y -nostdin -v error -threads 2 -filter_threads 1 \
             -ss "$IN" -t "$SEG" -i footage/pexels/pexels_30770305_1080.mp4 \
-            -filter_complex "
-              [0:v]split=3[v1][v2][v3];
-              [v1]trim=start=${XF}:end=${M},setpts=PTS-STARTPTS,fps=30[mid];
-              [v2]trim=start=${M}:end=${SEG},setpts=PTS-STARTPTS,fps=30[tail];
-              [v3]trim=start=0:end=${XF},setpts=PTS-STARTPTS,fps=30[head];
-              [tail][head]xfade=transition=fade:duration=${XF}:offset=0[xf];
-              [xf][mid]concat=n=2:v=1:a=0,
-                scale=1920:1080:force_original_aspect_ratio=increase,
-                crop=1920:1080,setsar=1,fps=60[v]
-            " \
-            -map "[v]" -an -t "$M" -r 60 -threads 2 -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p /tmp/drone60.mp4 ) > /tmp/p2.log 2>&1 &
-          FFPID=$!
-          for i in $(seq 1 60); do
-            if ! kill -0 $FFPID 2>/dev/null; then break; fi
-            rss=$(grep VmRSS /proc/$FFPID/status 2>/dev/null | awk '{print $2" "$3}')
-            echo "p2 hb $i rss=${rss:-na}"
-            sleep 5
-          done
-          wait $FFPID; echo "p2 exit=$?"
-          tail -10 /tmp/p2.log
+            -vf "trim=start=${XF}:end=${M},setpts=PTS-STARTPTS,fps=30,scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,setsar=1,fps=60" \
+            -an -t $((M-XF)) -r 60 -threads 2 -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p /tmp/mid.mp4
+          ls -lh /tmp/mid.mp4
+      - name: pass2c concat
+        run: |
+          set -e
+          printf "file '/tmp/bridge.mp4'\nfile '/tmp/mid.mp4'\n" > /tmp/concat.txt
+          ffmpeg -y -nostdin -v error -f concat -safe 0 -i /tmp/concat.txt -c copy -t 60 /tmp/drone60.mp4
           ls -lh /tmp/drone60.mp4
+          ffprobe -v error -show_entries stream=width,height,r_frame_rate -of default=nw=1 /tmp/drone60.mp4
       - name: pass3 composite
         run: |
           set -e
@@ -64,20 +68,18 @@ jobs:
               -stream_loop -1 -i /tmp/drone60.mp4 \
               -stream_loop -1 -i /tmp/rain1920.mp4 \
               -filter_complex "
-                [1:v]setpts=PTS+0*0,fps=60[r];
+                [1:v]fps=60[r];
                 [0:v][r]blend=all_mode=screen:all_opacity=0.10,format=yuv420p[v]
               " \
               -map "[v]" -an -t 60 -r 60 -threads 2 -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p /tmp/master.mp4
-          ) > /tmp/ffmpeg.log 2>&1 &
+          ) > /tmp/p3.log 2>&1 &
           FFPID=$!
-          echo "ffmpeg pid=$FFPID"
-          for i in $(seq 1 120); do
+          for i in $(seq 1 60); do
             if ! kill -0 $FFPID 2>/dev/null; then break; fi
             rss=$(grep VmRSS /proc/$FFPID/status 2>/dev/null | awk '{print $2" "$3}')
-            echo "heartbeat $i: $(date -u +%H:%M:%S) rss=${rss:-na}"
+            echo "p3 hb $i rss=${rss:-na}"
             sleep 5
           done
-          wait $FFPID
-          echo "exit=$?"
-          tail -20 /tmp/ffmpeg.log
+          wait $FFPID; echo "p3 exit=$?"
+          tail -10 /tmp/p3.log
           ls -lh /tmp/master.mp4
