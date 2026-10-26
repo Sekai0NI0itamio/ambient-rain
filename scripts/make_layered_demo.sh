@@ -49,9 +49,9 @@ ffmpeg -y -nostdin -v warning -stats \
   -stream_loop -1 -i footage/pexels/rain_seamless_6s.mp4 \
   -filter_complex "
     [0:v]split=3[v1][v2][v3];
-    [v1]trim=start=${XF}:end=${MID_END},setpts=PTS-STARTPTS[mid];
-    [v2]trim=start=${TAIL_START}:end=${SEG},setpts=PTS-STARTPTS[tail];
-    [v3]trim=start=0:end=${XF},setpts=PTS-STARTPTS[head];
+    [v1]trim=start=${XF}:end=${MID_END},setpts=PTS-STARTPTS,fps=30[mid];
+    [v2]trim=start=${TAIL_START}:end=${SEG},setpts=PTS-STARTPTS,fps=30[tail];
+    [v3]trim=start=0:end=${XF},setpts=PTS-STARTPTS,fps=30[head];
     [tail][head]xfade=transition=fade:duration=${XF}:offset=0[xf];
     [xf][mid]concat=n=2:v=1:a=0,
       scale=1920:1080:force_original_aspect_ratio=increase,
