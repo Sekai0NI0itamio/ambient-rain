@@ -44,9 +44,9 @@ if [ ! -f footage/pexels/rain_seamless_6s.mp4 ]; then
 fi
 
 echo "== video master ${M}s (drone + rain overlay)"
-ffmpeg -y -v warning -stats \
+ffmpeg -y -nostdin -v warning -stats \
   -ss "$IN" -t "$SEG" -i "$FOOTAGE" \
-  -stream_loop 11 -i footage/pexels/rain_seamless_6s.mp4 \
+  -stream_loop -1 -i footage/pexels/rain_seamless_6s.mp4 \
   -filter_complex "
     [0:v]split=3[v1][v2][v3];
     [v1]trim=start=${XF}:end=${MID_END},setpts=PTS-STARTPTS[mid];
@@ -64,7 +64,7 @@ ffmpeg -y -v warning -stats \
     [drone_rgb][rain]blend=all_mode=screen:all_opacity=${OVERLAY_OPACITY},
       format=yuv420p[vout]
   " \
-  -map "[vout]" -an -t "$M" \
+  -map "[vout]" -an -t "$M" -max_muxing_queue_size 4096 \
   -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p -r 60 -movflags +faststart \
   "ambient_master_rain_${M}s.mp4"
 
