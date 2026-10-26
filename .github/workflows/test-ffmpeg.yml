@@ -1,0 +1,16 @@
+name: Test ffmpeg
+on: workflow_dispatch
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: FedericoCarboni/setup-ffmpeg@v3
+      - name: simple encode
+        run: |
+          set -x
+          ffmpeg -version | head -1
+          ffmpeg -y -f lavfi -i testsrc=duration=5:size=1920x1080:rate=60 -c:v libx264 -preset veryfast -crf 26 -pix_fmt yuv420p /tmp/out.mp4
+          ls -lh /tmp/out.mp4
+          ffprobe -v error -show_entries format=duration -of default=nw=1 /tmp/out.mp4
