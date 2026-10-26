@@ -38,9 +38,6 @@ jobs:
 
       - name: Install ffmpeg
         uses: FedericoCarboni/setup-ffmpeg@v3
-        with:
-          ffmpeg-version: "7.1"
-          architecture: x64
 
       - name: Install Python deps
         timeout-minutes: 5
