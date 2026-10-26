@@ -33,7 +33,7 @@ jobs:
           set -e
           IN=48; OUT=110; XF=2
           SEG=$((OUT-IN)); M=$((SEG-XF))
-          ffmpeg -y -nostdin -v error -threads 2 -filter_threads 1 \
+          ( ffmpeg -y -nostdin -v error -threads 2 -filter_threads 1 \
             -ss "$IN" -t "$SEG" -i footage/pexels/pexels_30770305_1080.mp4 \
             -filter_complex "
               [0:v]split=3[v1][v2][v3];
@@ -45,7 +45,16 @@ jobs:
                 scale=1920:1080:force_original_aspect_ratio=increase,
                 crop=1920:1080,setsar=1,fps=60[v]
             " \
-            -map "[v]" -an -t "$M" -r 60 -threads 2 -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p /tmp/drone60.mp4
+            -map "[v]" -an -t "$M" -r 60 -threads 2 -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p /tmp/drone60.mp4 ) > /tmp/p2.log 2>&1 &
+          FFPID=$!
+          for i in $(seq 1 60); do
+            if ! kill -0 $FFPID 2>/dev/null; then break; fi
+            rss=$(grep VmRSS /proc/$FFPID/status 2>/dev/null | awk '{print $2" "$3}')
+            echo "p2 hb $i rss=${rss:-na}"
+            sleep 5
+          done
+          wait $FFPID; echo "p2 exit=$?"
+          tail -10 /tmp/p2.log
           ls -lh /tmp/drone60.mp4
       - name: pass3 composite
         run: |
