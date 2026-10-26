@@ -49,7 +49,8 @@ jobs:
           echo "ffmpeg pid=$FFPID"
           for i in $(seq 1 120); do
             if ! kill -0 $FFPID 2>/dev/null; then break; fi
-            echo "heartbeat $i: $(date -u +%H:%M:%S)"
+            rss=$(grep VmRSS /proc/$FFPID/status 2>/dev/null | awk '{print $2" "$3}')
+            echo "heartbeat $i: $(date -u +%H:%M:%S) rss=${rss:-na}"
             sleep 5
           done
           wait $FFPID
