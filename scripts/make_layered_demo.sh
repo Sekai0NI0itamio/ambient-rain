@@ -43,30 +43,55 @@ if [ ! -f footage/pexels/rain_seamless_6s.mp4 ]; then
   rm -f /tmp/_plate_clean.mp4
 fi
 
-echo "== video master ${M}s (drone + rain overlay)"
-ffmpeg -y -nostdin -v warning -stats -filter_threads 2 \
-  -ss "$IN" -t "$SEG" -i "$FOOTAGE" \
-  -stream_loop -1 -i footage/pexels/rain_seamless_6s.mp4 \
+echo "== rain overlay (4-quadrant xstack) 6s"
+ffmpeg -y -nostdin -v error -threads 2 -filter_threads 1 \
+  -i footage/pexels/rain_seamless_6s.mp4 \
   -filter_complex "
-    [0:v]split=3[v1][v2][v3];
-    [v1]trim=start=${XF}:end=${MID_END},setpts=PTS-STARTPTS,fps=30[mid];
-    [v2]trim=start=${TAIL_START}:end=${SEG},setpts=PTS-STARTPTS,fps=30[tail];
-    [v3]trim=start=0:end=${XF},setpts=PTS-STARTPTS,fps=30[head];
-    [tail][head]xfade=transition=fade:duration=${XF}:offset=0[xf];
-    [xf][mid]concat=n=2:v=1:a=0,
-      scale=1920:1080:force_original_aspect_ratio=increase,
-      crop=1920:1080,setsar=1,fps=60[drone];
-    [1:v]setpts=${OVERLAY_SLOW}*PTS,fps=60,scale=960:540,
+    [0:v]setpts=${OVERLAY_SLOW}*PTS,fps=60,scale=960:540,
       curves=all='0/0 0.02/0 0.15/0.45 1/1',split=4[q1][q2][q3][q4];
     [q2]hflip[q2f];[q4]hflip[q4f];
-    [q1][q2f][q3][q4f]xstack=inputs=4:layout=0_0|w0_0|0_h0|w0_h0,format=gbrp[rain];
-    [drone]eq=brightness=-0.06:saturation=0.88:contrast=1.02,format=gbrp[drone_rgb];
-    [drone_rgb][rain]blend=all_mode=screen:all_opacity=${OVERLAY_OPACITY},
-      format=yuv420p[vout]
+    [q1][q2f][q3][q4f]xstack=inputs=4:layout=0_0|w0_0|0_h0|w0_h0,format=yuv420p[v]
   " \
-  -map "[vout]" -an -t "$M" -max_muxing_queue_size 4096 \
-  -threads 2 -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p -r 60 -movflags +faststart \
+  -map "[v]" -an -t 6 -r 60 -threads 2 -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p \
+  /tmp/_rain_overlay_1920.mp4
+
+echo "== drone bridge (xfade) ${XF}s"
+ffmpeg -y -nostdin -v error -threads 2 -filter_threads 1 \
+  -ss "$IN" -t "$SEG" -i "$FOOTAGE" \
+  -filter_complex "
+    [0:v]split=2[v2][v3];
+    [v2]trim=start=${M}:end=${SEG},setpts=PTS-STARTPTS,fps=30[tail];
+    [v3]trim=start=0:end=${XF},setpts=PTS-STARTPTS,fps=30[head];
+    [tail][head]xfade=transition=fade:duration=${XF}:offset=0,fps=60[v]
+  " \
+  -map "[v]" -an -t ${XF} -r 60 -threads 2 -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p \
+  /tmp/_drone_bridge.mp4
+
+echo "== drone mid ${M}s"
+ffmpeg -y -nostdin -v error -threads 2 -filter_threads 1 \
+  -ss "$IN" -t "$SEG" -i "$FOOTAGE" \
+  -vf "trim=start=${XF}:end=${M},setpts=PTS-STARTPTS,fps=30,scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,setsar=1,fps=60" \
+  -an -t $((M-XF)) -r 60 -threads 2 -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p \
+  /tmp/_drone_mid.mp4
+
+echo "== drone master ${M}s (concat)"
+printf "file '/tmp/_drone_bridge.mp4'\nfile '/tmp/_drone_mid.mp4'\n" > /tmp/_drone_concat.txt
+ffmpeg -y -nostdin -v error -f concat -safe 0 -i /tmp/_drone_concat.txt -c copy -t "$M" /tmp/_drone_master.mp4
+
+echo "== video master ${M}s (drone + rain overlay)"
+ffmpeg -y -nostdin -v error -filter_threads 1 \
+  -stream_loop -1 -i /tmp/_drone_master.mp4 \
+  -stream_loop -1 -i /tmp/_rain_overlay_1920.mp4 \
+  -filter_complex "
+    [0:v]eq=brightness=-0.06:saturation=0.88:contrast=1.02,format=gbrp[drone_rgb];
+    [1:v]fps=60[rain];
+    [drone_rgb][rain]blend=all_mode=screen:all_opacity=${OVERLAY_OPACITY},format=yuv420p[vout]
+  " \
+  -map "[vout]" -an -t "$M" -r 60 -max_muxing_queue_size 4096 \
+  -threads 2 -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p -movflags +faststart \
   "ambient_master_rain_${M}s.mp4"
+
+rm -f /tmp/_rain_overlay_1920.mp4 /tmp/_drone_bridge.mp4 /tmp/_drone_mid.mp4 /tmp/_drone_concat.txt /tmp/_drone_master.mp4
 
 echo "== audio master (bed + drops + thunder)"
 python3 scripts/make_rain_mix.py --minutes 10 --out sources/_mix_raw.wav --thunder
@@ -94,9 +119,9 @@ VLOOPS=$(python3 -c "import math; print(max(0, math.ceil($MINUTES/$M)-1))")
 ALOOPS=$(python3 -c "import math; print(max(0, math.ceil($MINUTES/600)-1))")
 # Title lives here, not in the master: the master loops every 60 s and would
 # re-show it. Fade in 2-4 s, hold 5 s, fade out 9-14 s, nothing after.
-ffmpeg -y -v warning -stats -filter_threads 2 \
-  -stream_loop "$VLOOPS" -i "ambient_master_rain_${M}s.mp4" \
-  -stream_loop "$ALOOPS" -i "audio_master_rain_600s.wav" \
+ffmpeg -y -nostdin -v error -filter_threads 1 \
+  -thread_queue_size 8 -stream_loop "$VLOOPS" -i "ambient_master_rain_${M}s.mp4" \
+  -thread_queue_size 8 -stream_loop "$ALOOPS" -i "audio_master_rain_600s.wav" \
   -loop 1 -framerate 60 -i assets/title.png \
   -filter_complex "
     [2:v]scale=1920:1080:flags=lanczos,format=rgba,
