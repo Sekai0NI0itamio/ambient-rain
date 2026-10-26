@@ -22,9 +22,9 @@ jobs:
           IN=48; OUT=110; XF=2
           SEG=$((OUT-IN)); M=$((SEG-XF)); MID_END=$M; TAIL_START=$M
           OVERLAY_SLOW=0.8333
-          ( ffmpeg -y -nostdin -v error -filter_threads 2 \
-            -ss "$IN" -t "$SEG" -i footage/pexels/pexels_30770305_1080.mp4 \
-            -stream_loop 10 -i footage/pexels/rain_seamless_6s.mp4 \
+          ( ffmpeg -y -nostdin -v error  -filter_threads 1 \
+            -thread_queue_size 8 -ss "$IN" -t "$SEG" -i footage/pexels/pexels_30770305_1080.mp4 \
+            -thread_queue_size 8 -stream_loop 10 -i footage/pexels/rain_seamless_6s.mp4 \
             -filter_complex "
               [0:v]split=3[v1][v2][v3];
               [v1]trim=start=${XF}:end=${MID_END},setpts=PTS-STARTPTS,fps=30[mid];
