@@ -25,7 +25,7 @@ echo "== long version ${TARGET}s ($REPEATS x 60 s)"
 # 0. delivery copy of the master. The master is crf 18 (~7 Mbps); copying that
 #    for 8 hours would be a 26 GB file. One 60 s transcode, then everything is a
 #    stream copy of it.
-ffmpeg -y -nostdin -v error -i "$MASTER" -an -frames:v 3600 \
+ffmpeg -y -nostdin -v error -threads 2 -i "$MASTER" -an -frames:v 3600 \
   -c:v libx264 -preset veryfast -crf 26 -pix_fmt yuv420p -r 60 /tmp/_delivery60.mp4
 
 # 1. first minute with the title burned in (same encoder settings as delivery)
@@ -36,7 +36,7 @@ ffmpeg -y -nostdin -v error -i /tmp/_delivery60.mp4 -loop 1 -framerate 60 -i ass
       fade=t=out:st=9:d=5:alpha=1[t];
     [0:v][t]overlay=0:0:format=auto[v]
   " -map "[v]" -frames:v 3600 -an \
-  -c:v libx264 -preset veryfast -crf 26 -pix_fmt yuv420p -r 60 /tmp/_titled60.mp4
+  -threads 2 -c:v libx264 -preset veryfast -crf 26 -pix_fmt yuv420p -r 60 /tmp/_titled60.mp4
 
 # 2. concat list: titled minute, then repeats of the clean master
 printf "file '/tmp/_titled60.mp4'\n" > /tmp/_cat.txt

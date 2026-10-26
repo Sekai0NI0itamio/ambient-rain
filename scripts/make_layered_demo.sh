@@ -31,20 +31,20 @@ TAIL_START=$(python3 -c "print($SEG-$XF)")
 # normal frame-to-frame difference, i.e. invisible.
 if [ ! -f footage/pexels/rain_seamless_6s.mp4 ]; then
   echo "== building seamless rain plate"
-  ffmpeg -y -v error -ss 4.45 -t 7.5 -i "$OVERLAY" -an \
+  ffmpeg -y -v error -threads 2 -ss 4.45 -t 7.5 -i "$OVERLAY" -an \
     -c:v libx264 -preset veryfast -crf 14 -pix_fmt yuv420p /tmp/_plate_clean.mp4
   ffmpeg -y -v error -i /tmp/_plate_clean.mp4 -filter_complex "
     [0:v]split[a][b];
     [a]trim=0:6,setpts=PTS-STARTPTS[head];
     [b]trim=6:7.5,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=4.5[tail];
     [tail][head]blend=all_expr='A*(1-min(T/1.5,1))+B*min(T/1.5,1)',format=yuv420p[out]
-  " -map "[out]" -t 6 -an -c:v libx264 -preset veryfast -crf 14 \
+  " -map "[out]" -t 6 -an -threads 2 -c:v libx264 -preset veryfast -crf 14 \
     footage/pexels/rain_seamless_6s.mp4
   rm -f /tmp/_plate_clean.mp4
 fi
 
 echo "== video master ${M}s (drone + rain overlay)"
-ffmpeg -y -nostdin -v warning -stats \
+ffmpeg -y -nostdin -v warning -stats -filter_threads 2 \
   -ss "$IN" -t "$SEG" -i "$FOOTAGE" \
   -stream_loop -1 -i footage/pexels/rain_seamless_6s.mp4 \
   -filter_complex "
@@ -65,7 +65,7 @@ ffmpeg -y -nostdin -v warning -stats \
       format=yuv420p[vout]
   " \
   -map "[vout]" -an -t "$M" -max_muxing_queue_size 4096 \
-  -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p -r 60 -movflags +faststart \
+  -threads 2 -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p -r 60 -movflags +faststart \
   "ambient_master_rain_${M}s.mp4"
 
 echo "== audio master (bed + drops + thunder)"
@@ -94,7 +94,7 @@ VLOOPS=$(python3 -c "import math; print(max(0, math.ceil($MINUTES/$M)-1))")
 ALOOPS=$(python3 -c "import math; print(max(0, math.ceil($MINUTES/600)-1))")
 # Title lives here, not in the master: the master loops every 60 s and would
 # re-show it. Fade in 2-4 s, hold 5 s, fade out 9-14 s, nothing after.
-ffmpeg -y -v warning -stats \
+ffmpeg -y -v warning -stats -filter_threads 2 \
   -stream_loop "$VLOOPS" -i "ambient_master_rain_${M}s.mp4" \
   -stream_loop "$ALOOPS" -i "audio_master_rain_600s.wav" \
   -loop 1 -framerate 60 -i assets/title.png \
@@ -106,7 +106,7 @@ ffmpeg -y -v warning -stats \
   " \
   -map "[v]" -map 1:a \
   -t "$MINUTES" \
-  -c:v libx264 -preset veryfast -crf 26 -pix_fmt yuv420p -r 60 \
+  -threads 2 -c:v libx264 -preset veryfast -crf 26 -pix_fmt yuv420p -r 60 \
   -c:a aac -b:a 192k -ar 48000 -movflags +faststart \
   "ambient_demo_${MINUTES}s_rain.mp4"
 
