@@ -22,7 +22,7 @@ jobs:
           IN=48; OUT=110; XF=2
           SEG=$((OUT-IN)); M=$((SEG-XF)); MID_END=$M; TAIL_START=$M
           OVERLAY_SLOW=0.8333
-          ffmpeg -y -nostdin -v error -filter_threads 2 \
+          ( ffmpeg -y -nostdin -v error -filter_threads 2 \
             -ss "$IN" -t "$SEG" -i footage/pexels/pexels_30770305_1080.mp4 \
             -stream_loop -1 -i footage/pexels/rain_seamless_6s.mp4 \
             -filter_complex "
@@ -44,5 +44,16 @@ jobs:
             " \
             -map "[vout]" -an -t "$M" -max_muxing_queue_size 4096 \
             -threads 2 -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p -r 60 -movflags +faststart \
-            /tmp/master.mp4
+            /tmp/master.mp4 ) > /tmp/ffmpeg.log 2>&1 &
+          FFPID=$!
+          echo "ffmpeg pid=$FFPID"
+          for i in $(seq 1 120); do
+            if ! kill -0 $FFPID 2>/dev/null; then break; fi
+            echo "heartbeat $i: $(date -u +%H:%M:%S)"
+            sleep 5
+          done
+          wait $FFPID
+          echo "exit=$?"
+          echo "--- ffmpeg log tail ---"
+          tail -20 /tmp/ffmpeg.log
           ls -lh /tmp/master.mp4
