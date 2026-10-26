@@ -2,8 +2,8 @@ name: Test ffmpeg
 on: workflow_dispatch
 jobs:
   t:
-    runs-on: ubuntu-latest-4-cores
-    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: FedericoCarboni/setup-ffmpeg@v3
@@ -12,39 +12,54 @@ jobs:
           mkdir -p footage/pexels
           curl -L --fail --retry 3 -o footage/pexels/pexels_30770305_1080.mp4 "https://videos.pexels.com/video-files/30770305/13162097_1920_1080_30fps.mp4"
           curl -L --fail --retry 3 -o footage/pexels/pexels_36344044_rain_overlay.mp4 "https://videos.pexels.com/video-files/36344044/15415146_1920_1080_60fps.mp4"
-          # build seamless plate
           ffmpeg -y -v error -threads 2 -ss 4.45 -t 7.5 -i footage/pexels/pexels_36344044_rain_overlay.mp4 -an -c:v libx264 -preset veryfast -crf 14 -pix_fmt yuv420p /tmp/_plate_clean.mp4
           ffmpeg -y -v error -threads 2 -i /tmp/_plate_clean.mp4 -filter_complex "[0:v]split[a][b];[a]trim=0:6,setpts=PTS-STARTPTS[head];[b]trim=6:7.5,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=4.5[tail];[tail][head]blend=all_expr='A*(1-min(T/1.5,1))+B*min(T/1.5,1)',format=yuv420p[out]" -map "[out]" -t 6 -an -threads 2 -c:v libx264 -preset veryfast -crf 14 -pix_fmt yuv420p footage/pexels/rain_seamless_6s.mp4
-          ls -lh footage/pexels/rain_seamless_6s.mp4
-      - name: video master (heavy)
+          echo "plate ready"
+      - name: pass1 rain overlay 1920
         run: |
-          set -x
+          set -e
+          ffmpeg -y -nostdin -v error -threads 2 -filter_threads 1 \
+            -i footage/pexels/rain_seamless_6s.mp4 \
+            -filter_complex "
+              [0:v]setpts=0.8333*PTS,fps=60,scale=960:540,
+                curves=all='0/0 0.02/0 0.15/0.45 1/1',split=4[q1][q2][q3][q4];
+              [q2]hflip[q2f];[q4]hflip[q4f];
+              [q1][q2f][q3][q4f]xstack=inputs=4:layout=0_0|w0_0|0_h0|w0_h0,format=yuv420p[v]
+            " \
+            -map "[v]" -an -t 6 -r 60 -threads 2 -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p /tmp/rain1920.mp4
+          ls -lh /tmp/rain1920.mp4
+      - name: pass2 drone master 60
+        run: |
+          set -e
           IN=48; OUT=110; XF=2
-          SEG=$((OUT-IN)); M=$((SEG-XF)); MID_END=$M; TAIL_START=$M
-          OVERLAY_SLOW=0.8333
-          ( ffmpeg -y -nostdin -v error  -filter_threads 1 \
-            -thread_queue_size 8 -ss "$IN" -t "$SEG" -i footage/pexels/pexels_30770305_1080.mp4 \
-            -thread_queue_size 8 -stream_loop 10 -i footage/pexels/rain_seamless_6s.mp4 \
+          SEG=$((OUT-IN)); M=$((SEG-XF))
+          ffmpeg -y -nostdin -v error -threads 2 -filter_threads 1 \
+            -ss "$IN" -t "$SEG" -i footage/pexels/pexels_30770305_1080.mp4 \
             -filter_complex "
               [0:v]split=3[v1][v2][v3];
-              [v1]trim=start=${XF}:end=${MID_END},setpts=PTS-STARTPTS,fps=30[mid];
-              [v2]trim=start=${TAIL_START}:end=${SEG},setpts=PTS-STARTPTS,fps=30[tail];
+              [v1]trim=start=${XF}:end=${M},setpts=PTS-STARTPTS,fps=30[mid];
+              [v2]trim=start=${M}:end=${SEG},setpts=PTS-STARTPTS,fps=30[tail];
               [v3]trim=start=0:end=${XF},setpts=PTS-STARTPTS,fps=30[head];
               [tail][head]xfade=transition=fade:duration=${XF}:offset=0[xf];
               [xf][mid]concat=n=2:v=1:a=0,
                 scale=1920:1080:force_original_aspect_ratio=increase,
-                crop=1920:1080,setsar=1,fps=60[drone];
-              [1:v]setpts=${OVERLAY_SLOW}*PTS,fps=60,scale=960:540,
-                curves=all='0/0 0.02/0 0.15/0.45 1/1',split=4[q1][q2][q3][q4];
-              [q2]hflip[q2f];[q4]hflip[q4f];
-              [q1][q2f][q3][q4f]xstack=inputs=4:layout=0_0|w0_0|0_h0|w0_h0,format=gbrp[rain];
-              [drone]eq=brightness=-0.06:saturation=0.88:contrast=1.02,format=gbrp[drone_rgb];
-              [drone_rgb][rain]blend=all_mode=screen:all_opacity=0.10,
-                format=yuv420p[vout]
+                crop=1920:1080,setsar=1,fps=60[v]
             " \
-            -map "[vout]" -an -t "$M" -max_muxing_queue_size 4096 \
-            -threads 2 -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p -r 60 -movflags +faststart \
-            /tmp/master.mp4 ) > /tmp/ffmpeg.log 2>&1 &
+            -map "[v]" -an -t "$M" -r 60 -threads 2 -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p /tmp/drone60.mp4
+          ls -lh /tmp/drone60.mp4
+      - name: pass3 composite
+        run: |
+          set -e
+          (
+            ffmpeg -y -nostdin -v error -filter_threads 1 \
+              -stream_loop -1 -i /tmp/drone60.mp4 \
+              -stream_loop -1 -i /tmp/rain1920.mp4 \
+              -filter_complex "
+                [1:v]setpts=PTS+0*0,fps=60[r];
+                [0:v][r]blend=all_mode=screen:all_opacity=0.10,format=yuv420p[v]
+              " \
+              -map "[v]" -an -t 60 -r 60 -threads 2 -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p /tmp/master.mp4
+          ) > /tmp/ffmpeg.log 2>&1 &
           FFPID=$!
           echo "ffmpeg pid=$FFPID"
           for i in $(seq 1 120); do
@@ -55,6 +70,5 @@ jobs:
           done
           wait $FFPID
           echo "exit=$?"
-          echo "--- ffmpeg log tail ---"
           tail -20 /tmp/ffmpeg.log
           ls -lh /tmp/master.mp4
