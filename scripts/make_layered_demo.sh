@@ -99,7 +99,7 @@ ffmpeg -y -v warning -stats \
   -stream_loop "$ALOOPS" -i "audio_master_rain_600s.wav" \
   -loop 1 -framerate 60 -i assets/title.png \
   -filter_complex "
-    [2:v]format=rgba,
+    [2:v]scale=1920:1080:flags=lanczos,format=rgba,
       fade=t=in:st=2:d=2:alpha=1,
       fade=t=out:st=9:d=5:alpha=1[t];
     [0:v][t]overlay=0:0:format=auto[v]
@@ -112,3 +112,9 @@ ffmpeg -y -v warning -stats \
 
 echo "== done"
 ffprobe -v error -show_entries format=duration,size -of default=nw=1 "ambient_demo_${MINUTES}s_rain.mp4"
+
+# Every build also produces the long version, so the upload copy and the
+# review copy always come from the same master.
+if [ "${LONG_SECONDS:-28800}" -gt 0 ]; then
+  ./scripts/make_long_version.sh "${LONG_SECONDS:-28800}"
+fi

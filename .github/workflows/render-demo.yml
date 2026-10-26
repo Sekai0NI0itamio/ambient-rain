@@ -1,36 +1,55 @@
-name: Render demo (rain + thunder, 60 fps)
+name: Render rain (10 min + 8 h) and upload
 
-# Builds the current layered pipeline on a runner and hands back the MP4 as an
-# artifact. Nothing heavy runs on the laptop.
+# Everything heavy happens on the runner. The job builds both lengths from the
+# same master, returns the 10-minute cut as an artifact for review, and uploads
+# the 8-hour cut to YouTube as a private draft (or scheduled with publish_at).
 on:
   workflow_dispatch:
     inputs:
-      seconds:
-        description: "Length in seconds"
+      upload:
+        description: "Upload the 8-hour cut to YouTube"
         required: true
-        default: "600"
+        default: "yes"
+        type: choice
+        options: ["yes", "no"]
+      privacy:
+        description: "YouTube visibility"
+        required: true
+        default: "private"
+        type: choice
+        options: ["private", "unlisted", "public"]
+      publish_at:
+        description: "Optional schedule (ISO 8601 UTC, e.g. 2026-10-30T19:00:00Z)"
+        required: false
+        default: ""
 
 concurrency:
-  group: render-demo
+  group: render-rain
   cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 350
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install ffmpeg and numpy
+      - name: Install ffmpeg
+        uses: FedericoCarboni/setup-ffmpeg@v3
+        with:
+          ffmpeg-version: "7.1"
+          architecture: x64
+
+      - name: Install Python deps
+        timeout-minutes: 5
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg
           python3 -m pip install --quiet --break-system-packages numpy
           ffmpeg -version | head -n 1
 
-      - name: Fetch footage (Pexels, CC0-style licence)
+      - name: Fetch footage (Pexels licence)
+        timeout-minutes: 10
         run: |
           mkdir -p footage/pexels
           curl -L --fail --retry 3 -o footage/pexels/pexels_30770305_1080.mp4 \
@@ -39,18 +58,35 @@ jobs:
             "https://videos.pexels.com/video-files/36344044/15415146_1920_1080_60fps.mp4"
           ls -lh footage/pexels
 
-      - name: Render
+      - name: Build 10-minute and 8-hour cuts
+        timeout-minutes: 300
         env:
-          MINUTES: ${{ inputs.seconds }}
+          MINUTES: "600"
+          LONG_SECONDS: "28800"
         run: |
+          set -x
           chmod +x scripts/*.sh
           ./scripts/make_layered_demo.sh
-          ls -lh ambient_demo_*s_rain.mp4
+          ls -lh ambient_demo_600s_rain.mp4 ambient_demo_28800s_rain.mp4
 
-      - name: Upload result
+      - name: Upload 10-minute cut (review copy)
         uses: actions/upload-artifact@v4
         with:
-          name: rain-demo-${{ inputs.seconds }}s
-          path: ambient_demo_*s_rain.mp4
+          name: rain-demo-600s
+          path: ambient_demo_600s_rain.mp4
           retention-days: 7
           compression-level: 0
+
+      - name: Upload 8-hour cut to YouTube
+        if: ${{ inputs.upload == 'yes' }}
+        timeout-minutes: 120
+        env:
+          YOUTUBE_CLIENT_JSON: ${{ secrets.YOUTUBE_CLIENT_JSON }}
+          PUBLISH_AT: ${{ inputs.publish_at }}
+        run: |
+          ARGS=(--file ambient_demo_28800s_rain.mp4
+                --meta upload/metadata.json
+                --thumbnail assets/thumbnail.jpg
+                --privacy "${{ inputs.privacy }}")
+          if [ -n "$PUBLISH_AT" ]; then ARGS+=(--publish-at "$PUBLISH_AT"); fi
+          python3 scripts/upload_youtube.py "${ARGS[@]}"
