@@ -1,0 +1,25 @@
+{
+  "name": "Rain in the Forest",
+  "short_name": "RainForest",
+  "description": "8 hours of gentle rain and distant thunder for deep sleep and relaxation.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#070a0d",
+  "theme_color": "#070a0d",
+  "icons": [
+    {
+      "src": "./assets/thumbnail.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ],
+  "categories": [
+    "music",
+    "lifestyle",
+    "health"
+  ],
+  "lang": "en"
+}

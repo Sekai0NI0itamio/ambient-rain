@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 350
     permissions:
-      contents: read
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -65,6 +65,36 @@ jobs:
           chmod +x scripts/*.sh
           ./scripts/make_layered_demo.sh
           ls -lh ambient_demo_600s_rain.mp4 ambient_demo_28800s_rain.mp4
+
+      - name: Refresh GitHub Pages preview
+        run: |
+          set -e
+          mkdir -p docs/assets
+          cp -f assets/thumbnail.jpg assets/title.png docs/assets/
+          ffmpeg -y -nostdin -v error -ss 0 -t 15 -i ambient_master_rain_60s.mp4 \
+            -vf "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2" \
+            -c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p -r 30 \
+            -c:a aac -b:a 96k -ar 44100 -movflags +faststart docs/preview.mp4
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/preview.mp4 docs/assets
+          if git diff --cached --quiet; then
+            echo "No site changes to commit."
+          else
+            git commit -m "chore: refresh site preview clip and assets [skip ci]"
+            git push
+          fi
+
+      - name: Publish 10-min cut as release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="preview"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" \
+            --title "Preview assets" \
+            --notes "Auto-published preview assets for the ambient-rain GitHub Pages site." \
+            --latest=false
+          gh release upload "$TAG" ambient_demo_600s_rain.mp4 --clobber
 
       - name: Upload 10-minute cut (review copy)
         uses: actions/upload-artifact@v4
