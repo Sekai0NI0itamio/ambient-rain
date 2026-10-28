@@ -131,12 +131,16 @@ ffmpeg -y -nostdin -v error -filter_threads 1 \
   " \
   -map "[v]" -map 1:a \
   -t "$MINUTES" \
-  -threads 2 -c:v libx264 -preset veryfast -crf 26 -pix_fmt yuv420p -r 60 \
+  -threads 2 -c:v libx264 -preset ultrafast -crf 26 -pix_fmt yuv420p -r 60 \
   -c:a aac -b:a 192k -ar 48000 -movflags +faststart \
   "ambient_demo_${MINUTES}s_rain.mp4"
 
 echo "== done"
 ffprobe -v error -show_entries format=duration,size -of default=nw=1 "ambient_demo_${MINUTES}s_rain.mp4"
+
+# Free disk before the 8-hour build: footage and intermediates are no longer needed.
+rm -rf footage
+rm -f /tmp/_rain_overlay_1920.mp4 /tmp/_drone_bridge.mp4 /tmp/_drone_mid.mp4 /tmp/_drone_concat.txt /tmp/_drone_master.mp4
 
 # Every build also produces the long version, so the upload copy and the
 # review copy always come from the same master.

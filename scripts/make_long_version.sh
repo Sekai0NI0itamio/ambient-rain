@@ -29,7 +29,7 @@ ffmpeg -y -nostdin -v error -threads 2 -i "$MASTER" -an -frames:v 3600 \
   -c:v libx264 -preset veryfast -crf 26 -pix_fmt yuv420p -r 60 /tmp/_delivery60.mp4
 
 # 1. first minute with the title burned in (same encoder settings as delivery)
-ffmpeg -y -nostdin -v error -i /tmp/_delivery60.mp4 -loop 1 -framerate 60 -i assets/title.png \
+ffmpeg -y -nostdin -v error -threads 2 -i /tmp/_delivery60.mp4 -loop 1 -framerate 60 -i assets/title.png \
   -filter_complex "
     [1:v]scale=1920:1080:flags=lanczos,format=rgba,
       fade=t=in:st=2:d=2:alpha=1,
@@ -47,14 +47,13 @@ while [ "$i" -lt "$REPEATS" ]; do
 done
 ffmpeg -y -nostdin -v error -f concat -safe 0 -i /tmp/_cat.txt -c copy -t "$TARGET" /tmp/_video_long.mp4
 
-# 3. audio: one encode of the looped mix (gapless; copying AAC adds priming gaps)
-ffmpeg -y -nostdin -v error -stream_loop -1 -i "$AUDIO" -t "$TARGET" \
-  -c:a aac -b:a 192k -ar 48000 /tmp/_audio_long.m4a
+# free intermediates before the audio mux
+rm -f /tmp/_delivery60.mp4 /tmp/_titled60.mp4 /tmp/_cat.txt
 
-# 4. mux
-ffmpeg -y -nostdin -v error -i /tmp/_video_long.mp4 -i /tmp/_audio_long.m4a \
-  -map 0:v -map 1:a -c copy -t "$TARGET" -movflags +faststart "$OUT"
+# 3+4. mux: copy video, encode audio in one pass (avoids a separate 8h audio file)
+ffmpeg -y -nostdin -v error -i /tmp/_video_long.mp4 -stream_loop -1 -i "$AUDIO" -t "$TARGET" \
+  -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -ar 48000 -movflags +faststart "$OUT"
 
-rm -f /tmp/_delivery60.mp4 /tmp/_titled60.mp4 /tmp/_cat.txt /tmp/_video_long.mp4 /tmp/_audio_long.m4a
+rm -f /tmp/_video_long.mp4
 echo "== $OUT"
 ffprobe -v error -show_entries format=duration,size -of default=nw=1 "$OUT"
